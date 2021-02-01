@@ -34,7 +34,8 @@ class BaseModel:
 
     def add(self, **kwargs):
         instance = self.instance_class(**kwargs)
-        self.builder.add(instance)
+
+        self.builder.add(values=tuple(instance))
 
     def update(self, **kwargs):
         pass
@@ -52,6 +53,6 @@ class Person(BaseModel):
 person = Person()
 person.add(id="id", first_name="first_name", age="age")
 # person.add(id="id2", age="age2")
-# person.add(id="id2", first_name="first_name3", age=2)
-person.add(id="id2", first_name="first_name3", age="age2")
+person.add(age=2, first_name="first_name3", id="id2")
+# person.add(id="id2", first_name="first_name3", age="age2")
 person.execute()

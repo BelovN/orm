@@ -5,17 +5,20 @@ from base import (
     UPDATE, _ORDER, _UPDATE, _SET,
     DELETE, _DELETE_FROM
 )
-from collections import namedtuple
+from commands import SQLType
 
 
-class BaseCommand:
+class BaseCommand: # TODO Abstract class
     sql: str
+
+    def __init__(self, table_name, columns):
+        self.table_name = table_name
+        self.columns = columns
 
     def build(self):
         pass
 
-
-class Select(BaseCommand):
+class Select(BaseCommand): # TODO
 
     @staticmethod
     def build():
@@ -39,8 +42,7 @@ class Create(BaseCommand):
 class Add(BaseCommand):
 
     def __init__(self, table_name, columns):
-        self.table_name = table_name
-        self.columns = columns
+        super(Add, self).__init__(table_name, columns)
         self.values = []
 
     def __insert_into(self):
@@ -48,36 +50,25 @@ class Add(BaseCommand):
         insert_into = _INSERT_INTO.format(table_name=self.table_name, columns=formatted_columns)
         return insert_into
 
-    def __correct_types(self):
-        corrected_values = []
-
-        for value in self.values:
-            corrected = None
-
-            if isinstance(value, str):
-                corrected = '\'' + value + '\''
-            elif value is None:
-                corrected = "NULL"
-            else:
-                corrected = str(value)
-
-            corrected_values.append(corrected)
+    def __covnert_types_values(self, values_list): # Вынести в отдельный класс
+        corrected_values = [SQLType.convert(value) for value in values_list]
 
         return corrected_values
 
-    def __convert_values(self):
+    def __convert_values(self): # Вынести в отдельный класс
         converted_values = []
-        for values in self.values:
-            pass
+        for values_list in self.values:
+            converted_values.append(self.__covnert_types_values(values_list))
+        return converted_values
 
     def __values(self):
-        # corrected_values = self.__correct_types()
+        corrected_values = self.__convert_values()
         values_list = ['(' + ', '.join(value) + ')' for value in corrected_values]
         formatted_values = ', '.join(values_list)
         values = _VALUES.format(values=formatted_values)
         return values
 
-    def add_values(self, values):
+    def add(self, **kwargs): # ???????????
         self.values.append(values)
 
     def build_sql(self):
@@ -86,15 +77,36 @@ class Add(BaseCommand):
         sql_query = ADD.format(INSERT_INTO=insert_into, VALUES=values)
         return sql_query
 
+class Update(BaseCommand): # TODO
 
-class Update(BaseCommand):
-
-    def build():
+    def build_sql(self):
         pass
 
+class Delete(BaseCommand): # TODO
 
-class Delete(BaseCommand):
-    pass
+    def __init__(self, table_name, columns):
+        pass
+
+    def __delete_from(self):
+        pass
+
+    def __where(self):
+        pass
+
+    def __order_by(self):
+        pass
+
+    def __limit(self):
+        pass
+
+    def __offset(self):
+        pass
+
+    def add(self, values):
+        pass
+
+    def build_sql(self):
+        pass
 
 
 class Builder:
@@ -111,7 +123,7 @@ class Builder:
 
         return '\n '.join(builded)
 
-    def add(self, instance):
+    def add(self, values): # ????????????????
         add_command = None
 
         for command in self.commands:
@@ -123,5 +135,4 @@ class Builder:
             add_command = Add(table_name=self.table_name, columns=self.fields)
             self.commands.append(add_command)
 
-        add_command.add_values(values=list(instance))
-        # import pdb; pdb.set_trace()
+        add_command.add_values(values=values)

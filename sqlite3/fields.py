@@ -12,6 +12,19 @@ class SQLType(Enum):
     TEXT = 4
     BLOB = 5
 
+    @classmethod
+    def convert(cls, value): # Вынести в отдельный класс
+        if isinstance(value, str):
+            converted = '\"' + value + '\"'
+        elif value is None:
+            converted = cls.NULL.name
+        elif isinstance(value, int):
+            converted = str(value)
+        else:
+            raise ValueError(f"Unknown type {type(value)} to convert")
+
+        return converted
+
 
 class BaseField:
     name: str
@@ -72,3 +85,5 @@ class BLOBField(BaseField):
 
     def __setattr__(self, name, value):
         super(BLOBField, self).__setattr__(name, value)
+
+# TODO: class DataField
