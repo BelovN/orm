@@ -1,3 +1,0 @@
-
-class PersonDbTemplates:
-    pass
