@@ -1,7 +1,8 @@
-from .fields import SQLType
-from .sql import SQL, WHERE
-
+from abc import ABC, abstractmethod
 from types import FunctionType
+
+from .fields import SQLType, BaseField
+from .sql import SQL, WHERE
 
 
 class BaseOperation:
@@ -17,6 +18,9 @@ class BaseOperation:
             value = operand.build()
 
         return value
+
+    def get_args(self):
+        return self.first_operand.get_args() + self.second_operand.get_args()
 
     def _build_operand_values(self):
         first_value = self._build_operand(self.first_operand)
@@ -61,30 +65,18 @@ class OR(BaseOperation):
 
 class Q:
 
-    def __check_valid_count_kwargs(self, **kwargs):
-        if len(kwargs) != 1:
-            raise AttributeError(f"Class {SQL.WHERE.__name__} takes one key word argument. \
-                                    Received {len(kwargs)} arguments {kwargs}")
-
-    def __check_valid_method_name(self):
-        if self.arg_method_name not in WHERE.__dict__.keys():
-            raise AttributeError(f"Unknown condition method '{self.arg_method_name}'")
-
     def __set_condition_method(self):
-        self.__check_valid_method_name()
         self.condition_method = WHERE.__dict__[self.arg_method_name]
 
-    def __get_arg_name(self, **kwargs):
-        keys = kwargs.keys()
+    def __get_arg_name(self):
+        keys = self.kwargs.keys()
         keys_iterator = iter(keys)
         arg_name = next(keys_iterator)
         return arg_name
 
-    def __set_args(self, **kwargs):
-        self.__check_valid_count_kwargs(**kwargs)
-
-        _arg_name = self.__get_arg_name(**kwargs)
-        self.arg_value = kwargs[_arg_name]
+    def __set_args(self):
+        _arg_name = self.__get_arg_name()
+        self.arg_value = self.kwargs[_arg_name]
 
         if _arg_name.find('__') != -1:
             self.arg_name, method_name = _arg_name.split('__')
@@ -94,14 +86,21 @@ class Q:
             self.arg_method_name = WHERE._eq_value.__name__
 
     def __init__(self, **kwargs):
-        self.__set_args(**kwargs)
+        self.kwargs = kwargs
+        QValidator.validate(QValidatorCountKwargs, self)
+
+        self.__set_args()
+        QValidator.validate(QValidatorMethodName, self)
+
         self.__set_condition_method()
-        self.command = None
 
     def build(self):
         function = getattr(WHERE, self.arg_method_name)
         return function(column_name=self.arg_name,
                         value=SQLType.convert(self.arg_value))
+
+    def get_args(self):
+        return [{'arg_name': self.arg_name, 'arg_value': self.arg_value, 'method': self.arg_method_name}]
 
     def __or__(self, other):
         return OR(self, other)
@@ -118,3 +117,37 @@ class Q:
                 return True
 
         return False
+
+
+class QBaseValidator(ABC):
+
+    @staticmethod
+    @abstractmethod
+    def validate(query: Q):
+        pass
+
+
+class QValidatorCountKwargs(QBaseValidator):
+
+    @staticmethod
+    @abstractmethod
+    def validate(query: Q):
+        if len(query.kwargs) != 1:
+            raise AttributeError(f"Class {WHERE.__name__} takes one key word argument. " \
+                                 f"Received {len(query.kwargs)} arguments {query.kwargs}")
+
+
+class QValidatorMethodName(QBaseValidator):
+
+    @staticmethod
+    @abstractmethod
+    def validate(query: Q):
+        if query.arg_method_name not in WHERE.__dict__.keys():
+            raise AttributeError(f"Unknown condition method '{query.arg_method_name}'")
+
+
+class QValidator:
+
+    @staticmethod
+    def validate(validator: QBaseValidator, query: Q):
+        validator.validate(query)

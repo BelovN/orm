@@ -19,10 +19,10 @@ class PersonDbTemplates(BaseModel, metaclass=Singleton):
 def main():
     inst = PersonDbTemplates()
 
-    inst.add(birth_date=datetime(1999, 11, 12), name="Sanya")
-    inst.add(birth_date=datetime(1999, 11, 12), name="Petr")
+    inst.add(id=1, birth_date=datetime(1999, 11, 12), name="Sanya")
+    inst.add(id=2, birth_date=datetime(1999, 11, 12), name="Petr")
     inst.delete(where=Q(id__in=[1, 2, 3]) & Q(name__like="Ivan"))
-    inst.update(name='Sanya', birth_date=datetime(2011, 12, 12), where=Q(id=3))
+    inst.update(name='Sanya', where=Q(id__between=[1, 2]))
 
     sql = inst.get_sql_statements()
     print(sql)

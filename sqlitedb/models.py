@@ -37,28 +37,34 @@ class BaseModel:
         self.builder = Builder(table_name=self.table_name,
                                fields=list(self.fields.keys()))
 
-    def __check_value_types(self, **kwargs):
-        for key, value in kwargs.items():
-            self.fields[key].check_type_value(value)
-
     def get_sql_statements(self):
         sql = self.builder.build()
         return sql
 
     def add(self, **kwargs):
-        self.__check_value_types(**kwargs)
+        ArgsValidator.validate(self.fields, **kwargs)
+        ArgsTypesValidator.validate(self.fields, **kwargs)
+
         instance = self.instance_class(**kwargs)
 
         self.builder.add(values=list(instance))
 
     def update(self, where, limit=None, order_by=None, **kwargs):
-        self.__check_value_types(**kwargs)
+        ArgsValidator.validate(self.fields, **kwargs)
+        ArgsTypesValidator.validate(self.fields, **kwargs)
+
+        query_args = where.get_args()
+        QueryValidator.validate(self.fields, query_args)
+
         instance = self.instance_class(**kwargs)
 
         self.builder.update(values=list(instance), where=where,
                             order_by=order_by, limit=limit)
 
     def delete(self, where, limit=None, offset=None):
+        query_args = where.get_args()
+        QueryValidator.validate(self.fields, query_args)
+
         self.builder.delete(where=where, limit=limit, offset=offset)
 
     def commit(self):
@@ -67,3 +73,46 @@ class BaseModel:
             result.append(self.connection.execute(command))
 
         return result
+
+
+class ArgsTypesValidator:
+
+    @staticmethod
+    def validate(fields, **kwargs):
+        for key, value in kwargs.items():
+            fields[key].check_type_value(value)
+
+
+class ArgsValidator:
+
+    @staticmethod
+    def validate(fields, **kwargs):
+        if not set(fields.keys()).issuperset(set(kwargs.keys())):
+            raise AttributeError(f'Unknown attributes {list(set(kwargs.keys())-set(fields.keys()))}')
+
+
+class QueryValidator:
+    methods_with_iterable_args = ['_between_value', '_in_value']
+
+    @staticmethod
+    def __check_same_types(iterable):
+        value_type = type(iterable[0])
+
+        for val in iterable:
+            if not isinstance(val, value_type):
+                raise ValuesError(f'Different type values in {iterable}')
+
+    @staticmethod
+    def validate(fields, query_args):
+        kwargs = {}
+        for query in query_args:
+            if query['method'] in QueryValidator.methods_with_iterable_args:
+                QueryValidator.__check_same_types(query['method'])
+                if query['arg_name'] not in kwargs:
+                    kwargs[query['arg_name']] = query['arg_value'][0]
+            else:
+                if query['arg_name'] not in kwargs:
+                    kwargs[query['arg_name']] = query['arg_value']
+
+        ArgsTypesValidator.validate(fields, **kwargs)
+        ArgsValidator.validate(fields, **kwargs)

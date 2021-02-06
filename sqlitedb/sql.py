@@ -78,7 +78,10 @@ class SQL:
         sql_limit = SQL.__limit(limit)
         sql_offset = SQL.__offset(offset)
 
-        return SQL.DELETE.format(delete_from=sql_delete_from, where=sql_where, limit=sql_limit, offset=sql_offset)
+        return SQL.DELETE.format(delete_from=sql_delete_from,
+                                 where=sql_where,
+                                 limit=sql_limit,
+                                 offset=sql_offset)
 
     @staticmethod
     def update(table_name, columns, values, row_filter, order_by=None, limit=None):
@@ -88,7 +91,11 @@ class SQL:
         sql_order_by = SQL.__order_by(order_by)
         sql_limit = SQL.__limit(limit)
 
-        return SQL.UPDATE.format(update=sql_update, set=sql_set, where=sql_where, order_by=sql_order_by, limit=sql_limit)
+        return SQL.UPDATE.format(update=sql_update,
+                                 set=sql_set,
+                                 where=sql_where,
+                                 order_by=sql_order_by,
+                                 limit=sql_limit)
 
     @staticmethod
     def __delete_from(table_name):
@@ -125,7 +132,8 @@ class SQL:
     def __create_table(table_name, if_not_exists=False):
         sql_if_not_exists = SQL.__if_not_exists(if_not_exists)
 
-        return SQL._CREATE_TABLE.format(table_name=table_name, if_not_exists=sql_if_not_exists)
+        return SQL._CREATE_TABLE.format(table_name=table_name,
+                                        if_not_exists=sql_if_not_exists)
 
     @staticmethod
     def __if_not_exists(if_not_exists=False):
@@ -256,7 +264,9 @@ class WHERE:
 
     @staticmethod
     def _between_value(column_name, value):
-        return WHERE._BETWEEN.format(column_name=column_name, less_value=value[0], more_value=value[1])
+        return WHERE._BETWEEN.format(column_name=column_name,
+                                     less_value=value[0],
+                                     more_value=value[1])
 
     @staticmethod
     def _lt_value(column_name, value):
