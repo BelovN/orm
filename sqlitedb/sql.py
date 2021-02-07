@@ -246,40 +246,40 @@ class WHERE:
         return WHERE._OR.format(first_value=first_value, second_value=second_value)
 
     @staticmethod
-    def _eq_value(column_name, value):
+    def eq(column_name, value):
         return WHERE._EQ.format(column_name=column_name, value=value)
 
     @staticmethod
-    def _neq_value(column_name, value):
+    def ne(column_name, value):
         return WHERE._NEQ.format(column_name=column_name, value=value)
 
     @staticmethod
-    def _in_value(column_name, value):
+    def in_values(column_name, value):
         sql_values = '(' + ', '.join(value) + ')'
         return WHERE._IN.format(column_name=column_name, value=sql_values)
 
     @staticmethod
-    def _like_value(column_name, value):
+    def like(column_name, value):
         return WHERE._LIKE.format(column_name=column_name, value=value)
 
     @staticmethod
-    def _between_value(column_name, value):
+    def between(column_name, value):
         return WHERE._BETWEEN.format(column_name=column_name,
                                      less_value=value[0],
                                      more_value=value[1])
 
     @staticmethod
-    def _lt_value(column_name, value):
+    def lt(column_name, value):
         return WHERE._LT.format(column_name=column_name, value=value)
 
     @staticmethod
-    def _gt_value(column_name, value):
+    def gt(column_name, value):
         return WHERE._GT.format(column_name=column_name, value=value)
 
     @staticmethod
-    def _lte_value(column_name, value):
+    def le(column_name, value):
         return WHERE._LTE.format(column_name=column_name, value=value)
 
     @staticmethod
-    def _gte_value(column_name, value):
+    def ge(column_name, value):
         return WHERE._GTE.format(column_name=column_name, value=value)

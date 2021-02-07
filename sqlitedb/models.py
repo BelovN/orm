@@ -35,7 +35,7 @@ class BaseModel:
 
         self.__set_instance_class()
         self.builder = Builder(table_name=self.table_name,
-                               fields=list(self.fields.keys()))
+                               fields=self.fields)
 
     def get_sql_statements(self):
         sql = self.builder.build()
@@ -92,7 +92,7 @@ class ArgsValidator:
 
 
 class QueryValidator:
-    methods_with_iterable_args = ['_between_value', '_in_value']
+    methods_with_iterable_args = ['between', 'in_values']
 
     @staticmethod
     def __check_same_types(iterable):

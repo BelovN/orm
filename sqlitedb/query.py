@@ -1,3 +1,6 @@
+import operator
+
+from . import components
 from abc import ABC, abstractmethod
 from types import FunctionType
 
@@ -51,6 +54,10 @@ class AND(BaseOperation):
 
         return WHERE._and(first_value, second_value)
 
+    def check_intersection(self, component):
+        return component.check_intersection(self.first_operand) and \
+                    component.check_intersection(self.second_operand)
+
 
 class OR(BaseOperation):
 
@@ -62,11 +69,16 @@ class OR(BaseOperation):
 
         return WHERE._or(first_value, second_value)
 
+    def check_intersection(self, component):
+        return component.check_intersection(self.first_operand) or \
+                    component.check_intersection(self.second_operand)
+
 
 class Q:
 
     def __set_condition_method(self):
-        self.condition_method = WHERE.__dict__[self.arg_method_name]
+        method_class = getattr(components, self.arg_method_name.capitalize())
+        self.method = method_class(arg_name=self.arg_name, arg_value=self.arg_value)
 
     def __get_arg_name(self):
         keys = self.kwargs.keys()
@@ -80,10 +92,10 @@ class Q:
 
         if _arg_name.find('__') != -1:
             self.arg_name, method_name = _arg_name.split('__')
-            self.arg_method_name = f'_{method_name}_value'
+            self.arg_method_name = method_name
         else:
             self.arg_name = _arg_name
-            self.arg_method_name = WHERE._eq_value.__name__
+            self.arg_method_name = WHERE.eq.__name__
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -102,10 +114,20 @@ class Q:
     def get_args(self):
         return [{'arg_name': self.arg_name, 'arg_value': self.arg_value, 'method': self.arg_method_name}]
 
+    def check_intersection(self, other):
+        if isinstance(other, BaseOperation):
+            return other.check_intersection(self)
+        else:
+            return self.method.check_intersection(other.method)
+
     def __or__(self, other):
+        if other is None:
+            return self
         return OR(self, other)
 
     def __and__(self, other):
+        if other is None:
+            return self
         return AND(self, other)
 
     def __eq__(self, other):

@@ -1,5 +1,7 @@
+from .query import Q
 from .sql import SQL
 from .fields import SQLType
+
 
 
 class BaseCommand:
@@ -11,6 +13,9 @@ class BaseCommand:
     def _convert_values(self, values):
         converted = [SQLType.convert(v) for v in values]
         return converted
+
+    def check_intersection(self, other):
+        return self.where.check_intersection(other)
 
 
 class Create(BaseCommand):
@@ -26,7 +31,7 @@ class Create(BaseCommand):
     def build(self):
         return SQL.create(
             table_name=self.table_name,
-            columns=self.columns,
+            columns=self.columns.keys(),
             if_not_exists=self.if_not_exists,
             without_rowid=self.without_rowid
         )
@@ -40,13 +45,23 @@ class Add(BaseCommand):
     def __init__(self, table_name, columns, values):
         super(Add, self).__init__(table_name)
         self.columns = columns
-        self.values = [self._convert_values(values)]
+        self.values = [values]
+        self.value_q = []
+
+        for value_list in self.values:
+            q = None
+            for column, value in zip(self.columns, value_list):
+                kwargs = {column: value}
+                q = Q(**kwargs) | q
+
+            self.value_q.append(q)
 
     def build_sql(self):
+        self.converted_values = [self._convert_values(values_list) for values_list in self.values]
         return SQL.add(
             table_name=self.table_name,
-            columns=self.columns,
-            values=self.values
+            columns=self.columns.keys(),
+            values=self.converted_values
         )
 
     def check_can_add(self, other):
@@ -56,6 +71,9 @@ class Add(BaseCommand):
         self.values += other.values
         del other
         return self
+
+    def __str__(self):
+        return 'ADD ' + str(self.values[0])
 
 
 class Update(BaseCommand):
@@ -84,7 +102,7 @@ class Update(BaseCommand):
 
     def build_sql(self):
         clear_values, clear_columns = self.__remove_empty(values=self.values,
-                                                          columns=self.columns)
+                                                          columns=self.columns.keys())
         sql_values = self._convert_values(clear_values)
         return SQL.update(
             table_name=self.table_name, columns=clear_columns,
@@ -109,6 +127,9 @@ class Update(BaseCommand):
 
         del other
         return self
+
+    def __str__(self):
+        return 'UPDATE ' + str(self.values[0]) + ' ' + str(self.where)
 
 
 class Delete(BaseCommand):
@@ -141,6 +162,10 @@ class Delete(BaseCommand):
         del other
         return self
 
+    def __str__(self):
+        return 'DELETE ' + str(self.where)
+
+
 
 class Builder:
     __priorety = ['DELETE', 'ADD', 'UPDATE']
@@ -153,6 +178,11 @@ class Builder:
             'ADD': [],
             'UPDATE': [],
         }
+        self.primary_key_fields = [
+            field_name for field_name, field in self.fields.items() \
+            if hasattr(field, 'primary_key') and field.primary_key
+        ]
+
 
     def build(self):
         self.builded = []
@@ -171,11 +201,34 @@ class Builder:
 
         self.commands[type_command].append(new_command)
 
+    def __validate_commands(self):
+        pass
+
     def clear(self):
         for key in self.commands.keys():
             self.commands[key] = []
 
         self.builded.clear()
+
+    def __delete_validation(self, new_command):
+
+        for command in self.commands['ADD']:
+            need_to_delete = []
+            for  i, where in enumerate(command.value_q):
+                need_update = new_command.check_intersection(where)
+                if need_update:
+                    if len(command.values[0]) == 1:
+                        print(command, 'was deleted!')
+                        del command
+                    else:
+                        need_to_delete.append(i)
+
+            for i in range(len(need_to_delete)-1, -1, -1):
+                del command.values[0][i]
+                del command.value_q[0][i]
+
+        return True
+
 
     def delete(self, where, limit=None, offset=None):
         new_command = Delete(
@@ -186,13 +239,45 @@ class Builder:
         )
         self.__add_command(type_command='DELETE', new_command=new_command)
 
+    def __add_validation(self, new_command):
+
+        for command in self.commands['ADD']:
+            is_unique = True
+            for pk_field in self.primary_key_fields:
+                num_field = list(new_command.columns.keys()).index(pk_field)
+                is_unique &= not (new_command.values[0][num_field] == command.values[0][num_field])
+
+            if not is_unique:
+                print(f"Primary key violation in command {new_command}")
+                return False
+
+        return True
+
     def add(self, values):
         new_command = Add(
             table_name=self.table_name,
             columns=self.fields,
             values=values
         )
-        self.__add_command(type_command='ADD', new_command=new_command)
+        is_valid = self.__add_validation(new_command)
+        if is_valid:
+            self.__add_command(type_command='ADD', new_command=new_command)
+
+    def __update_validation(self, new_command):
+
+        for command in self.commands['ADD']:
+
+            for where in command.value_q:
+                need_update = new_command.check_intersection(where)
+                if need_update:
+                    print(str(command), 'was updated!')
+                    for column, value in zip(new_command.columns, new_command.values):
+                        if value:
+                            ind = list(command.columns).index(column)
+                            # import pdb; pdb.set_trace()
+                            command.values[0][ind] = value
+
+        return True
 
     def update(self, values, where, order_by=None, limit=None):
         new_command = Update(
@@ -203,4 +288,6 @@ class Builder:
             limit=limit,
             order_by=order_by
         )
-        self.__add_command(type_command='UPDATE', new_command=new_command)
+        is_valid = self.__update_validation(new_command)
+        if is_valid:
+            self.__add_command(type_command='UPDATE', new_command=new_command)
