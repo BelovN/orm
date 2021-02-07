@@ -237,6 +237,7 @@ class Builder:
             limit=limit,
             offset=offset
         )
+        self.__delete_validation(new_command)
         self.__add_command(type_command='DELETE', new_command=new_command)
 
     def __add_validation(self, new_command):
@@ -277,7 +278,6 @@ class Builder:
                             # import pdb; pdb.set_trace()
                             command.values[0][ind] = value
 
-        return True
 
     def update(self, values, where, order_by=None, limit=None):
         new_command = Update(
@@ -288,6 +288,5 @@ class Builder:
             limit=limit,
             order_by=order_by
         )
-        is_valid = self.__update_validation(new_command)
-        if is_valid:
-            self.__add_command(type_command='UPDATE', new_command=new_command)
+        self.__update_validation(new_command)
+        self.__add_command(type_command='UPDATE', new_command=new_command)
