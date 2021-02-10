@@ -28,10 +28,16 @@ class Create(BaseCommand):
         self.if_not_exists = if_not_exists
         self.without_rowid = without_rowid
 
-    def build(self):
+    def build_sql(self):
+        sql_columns = []
+
+        for column in self.columns.values():
+            sql_columns.append((column.name, column._type.name,
+                                column.default, column.not_null,
+                                column.primary_key))
         return SQL.create(
             table_name=self.table_name,
-            columns=self.columns.keys(),
+            columns=sql_columns,
             if_not_exists=self.if_not_exists,
             without_rowid=self.without_rowid
         )
@@ -166,7 +172,6 @@ class Delete(BaseCommand):
         return 'DELETE ' + str(self.where)
 
 
-
 class Builder:
     __priorety = ['DELETE', 'ADD', 'UPDATE']
 
@@ -177,19 +182,20 @@ class Builder:
             'DELETE': [],
             'ADD': [],
             'UPDATE': [],
+            'CREATE': [],
         }
         self.primary_key_fields = [
             field_name for field_name, field in self.fields.items() \
             if hasattr(field, 'primary_key') and field.primary_key
         ]
+        self.__stack_commands = []
 
 
     def build(self):
         self.builded = []
 
-        for type_command in self.__priorety:
-            for command in self.commands[type_command]:
-                self.builded.append(command.build_sql())
+        for command in self.__stack_commands:
+            self.builded.append(command.build_sql())
 
         return '\n'.join(self.builded)
 
@@ -199,36 +205,16 @@ class Builder:
                 command += new_command
                 return
 
+        self.__stack_commands.append(new_command)
         self.commands[type_command].append(new_command)
 
-    def __validate_commands(self):
-        pass
-
     def clear(self):
-        for key in self.commands.keys():
-            self.commands[key] = []
+        self.__stack_commands.clear()
+
+        for command_type in self.commands.keys():
+            self.commands[command_type] = []
 
         self.builded.clear()
-
-    def __delete_validation(self, new_command):
-
-        for command in self.commands['ADD']:
-            need_to_delete = []
-            for  i, where in enumerate(command.value_q):
-                need_update = new_command.check_intersection(where)
-                if need_update:
-                    if len(command.values[0]) == 1:
-                        print(command, 'was deleted!')
-                        del command
-                    else:
-                        need_to_delete.append(i)
-
-            for i in range(len(need_to_delete)-1, -1, -1):
-                del command.values[0][i]
-                del command.value_q[0][i]
-
-        return True
-
 
     def delete(self, where, limit=None, offset=None):
         new_command = Delete(
@@ -237,7 +223,6 @@ class Builder:
             limit=limit,
             offset=offset
         )
-        self.__delete_validation(new_command)
         self.__add_command(type_command='DELETE', new_command=new_command)
 
     def __add_validation(self, new_command):
@@ -260,24 +245,8 @@ class Builder:
             columns=self.fields,
             values=values
         )
-        is_valid = self.__add_validation(new_command)
-        if is_valid:
-            self.__add_command(type_command='ADD', new_command=new_command)
-
-    def __update_validation(self, new_command):
-
-        for command in self.commands['ADD']:
-
-            for where in command.value_q:
-                need_update = new_command.check_intersection(where)
-                if need_update:
-                    print(str(command), 'was updated!')
-                    for column, value in zip(new_command.columns, new_command.values):
-                        if value:
-                            ind = list(command.columns).index(column)
-                            # import pdb; pdb.set_trace()
-                            command.values[0][ind] = value
-
+        self.__add_validation(new_command)
+        self.__add_command(type_command='ADD', new_command=new_command)
 
     def update(self, values, where, order_by=None, limit=None):
         new_command = Update(
@@ -288,5 +257,13 @@ class Builder:
             limit=limit,
             order_by=order_by
         )
-        self.__update_validation(new_command)
         self.__add_command(type_command='UPDATE', new_command=new_command)
+
+    def create(self, if_not_exists=False, without_rowid=False):
+        new_command = Create(
+            table_name=self.table_name,
+            columns=self.fields,
+            if_not_exists=if_not_exists,
+            without_rowid=without_rowid
+        )
+        self.__add_command(type_command='CREATE', new_command=new_command)

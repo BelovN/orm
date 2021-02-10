@@ -86,6 +86,7 @@ class RealField(BaseField):
     _type: SQLType = SQLType.REAL
 
     def __init__(self, name, not_null=False, default=None):
+        self.primary_key = False
         super(RealField, self).__init__(name=name,
                                         not_null=not_null,
                                         default=default)
@@ -102,6 +103,7 @@ class TextField(BaseField):
     _type: SQLType = SQLType.TEXT
 
     def __init__(self, name, not_null=False, default=None):
+        self.primary_key = False
         super(TextField, self).__init__(name=name,
                                         not_null=not_null,
                                         default=default)
@@ -118,6 +120,7 @@ class BLOBField(BaseField):
     _type: SQLType = SQLType.BLOB
 
     def __init__(self, name, not_null=False, default=None):
+        self.primary_key = False
         super(BLOBField, self).__init__(name=name,
                                         not_null=not_null,
                                         default=default)
@@ -134,6 +137,7 @@ class DateField(BaseField):
     _type: SQLType = SQLType.DATE
 
     def __init__(self, name, not_null=False, default=None):
+        self.primary_key = False
         super(DateField, self).__init__(name=name,
                                         not_null=not_null,
                                         default=default)

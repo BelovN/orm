@@ -1,6 +1,5 @@
 import operator
 
-from . import components
 from abc import ABC, abstractmethod
 from types import FunctionType
 
@@ -54,10 +53,6 @@ class AND(BaseOperation):
 
         return WHERE._and(first_value, second_value)
 
-    def check_intersection(self, component):
-        return component.check_intersection(self.first_operand) and \
-                    component.check_intersection(self.second_operand)
-
 
 class OR(BaseOperation):
 
@@ -68,10 +63,6 @@ class OR(BaseOperation):
         first_value, second_value = self._build_operand_values()
 
         return WHERE._or(first_value, second_value)
-
-    def check_intersection(self, component):
-        return component.check_intersection(self.first_operand) or \
-                    component.check_intersection(self.second_operand)
 
 
 class Q:
@@ -104,8 +95,6 @@ class Q:
         self.__set_args()
         QValidator.validate(QValidatorMethodName, self)
 
-        self.__set_condition_method()
-
     def build(self):
         function = getattr(WHERE, self.arg_method_name)
         return function(column_name=self.arg_name,
@@ -113,12 +102,6 @@ class Q:
 
     def get_args(self):
         return [{'arg_name': self.arg_name, 'arg_value': self.arg_value, 'method': self.arg_method_name}]
-
-    def check_intersection(self, other):
-        if isinstance(other, BaseOperation):
-            return other.check_intersection(self)
-        else:
-            return self.method.check_intersection(other.method)
 
     def __or__(self, other):
         if other is None:

@@ -1,9 +1,9 @@
 from datetime import datetime
 from collections import namedtuple
 
+from .commands import Builder
 from .db import Connection
 from .fields import BaseField
-from .commands import Builder
 from .query import Q
 
 
@@ -66,6 +66,9 @@ class BaseModel:
         QueryValidator.validate(self.fields, query_args)
 
         self.builder.delete(where=where, limit=limit, offset=offset)
+
+    def create(self, if_not_exists=True, without_rowid=False):
+        self.builder.create(if_not_exists=if_not_exists, without_rowid=without_rowid)
 
     def commit(self):
         result = []

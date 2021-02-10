@@ -54,6 +54,7 @@ class SQL:
 
     @staticmethod
     def create(table_name, columns, if_not_exists=False, without_rowid=False):
+
         sql_create_table = SQL.__create_table(table_name, if_not_exists)
 
         sql_columns = []
@@ -179,7 +180,7 @@ class SQL:
 
     @staticmethod
     def __primary_key(primary_key):
-        if _primary_key:
+        if primary_key:
             return SQL._PRIMARY_KEY
         else:
             return ''
