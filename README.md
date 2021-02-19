@@ -53,5 +53,5 @@ from sqlitedb.query import Q
 PersonDbTemplates().select(columns=['id', 'name'], where=Q(id__eq=1))
 ```
 
-###Зачем?
+### Зачем?
 Да по фану. Решил добить тестовое задание до чего-то рабочего (Раз уж потратил столько времени).
