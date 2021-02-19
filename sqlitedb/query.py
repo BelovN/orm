@@ -1,10 +1,7 @@
-import operator
-
 from abc import ABC, abstractmethod
-from types import FunctionType
 
-from .fields import SQLType, BaseField
-from .sql import SQL, WHERE
+from .fields import SQLType
+from .sql import WHERE
 
 
 class BaseOperation:
@@ -66,10 +63,6 @@ class OR(BaseOperation):
 
 
 class Q:
-
-    def __set_condition_method(self):
-        method_class = getattr(components, self.arg_method_name.capitalize())
-        self.method = method_class(arg_name=self.arg_name, arg_value=self.arg_value)
 
     def __get_arg_name(self):
         keys = self.kwargs.keys()

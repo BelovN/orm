@@ -1,6 +1,15 @@
 
 class SQL:
 
+    SELECT = """SELECT {distinct} {column_list} {_from} {where} {order_by};"""
+    # TODO: LIMIT count OFFSET offset GROUP BY column HAVING group_filter;
+
+    _DISTINCT = """DISTINCT"""
+
+    _FROM = """FROM {table_list}"""
+
+    _JOIN = """JOIN {table} ON {join_condition}"""
+
     _WHERE = """WHERE {row_filter}"""
 
     _ORDER_BY = """ORDER BY {columns}"""
@@ -59,18 +68,18 @@ class SQL:
 
         sql_columns = []
         for column_name, data_type, default, not_null, primary_key in columns:
-            sql_columns.append(SQL.__create_column(column_name=column_name,
-                                                   data_type=data_type,
-                                                   default=default,
-                                                   not_null=not_null,
-                                                   primary_key=primary_key))
+            sql_columns.append(SQL.__create_column(
+                    column_name=column_name, data_type=data_type, default=default,
+                    not_null=not_null, primary_key=primary_key
+                )
+            )
 
         sql_create_columns = ', '.join(sql_columns)
         sql_without_rowid = SQL.__without_rowid(without_rowid)
 
-        return SQL.CREATE.format(create_table=sql_create_table,
-                                 create_columns=sql_create_columns,
-                                 without_rowid=sql_without_rowid)
+        return SQL.CREATE.format(
+            create_table=sql_create_table, create_columns=sql_create_columns, without_rowid=sql_without_rowid
+        )
 
     @staticmethod
     def delete(table_name, row_filter, limit=None, offset=None):
@@ -79,10 +88,9 @@ class SQL:
         sql_limit = SQL.__limit(limit)
         sql_offset = SQL.__offset(offset)
 
-        return SQL.DELETE.format(delete_from=sql_delete_from,
-                                 where=sql_where,
-                                 limit=sql_limit,
-                                 offset=sql_offset)
+        return SQL.DELETE.format(
+            delete_from=sql_delete_from, where=sql_where, limit=sql_limit, offset=sql_offset
+        )
 
     @staticmethod
     def update(table_name, columns, values, row_filter, order_by=None, limit=None):
@@ -92,15 +100,40 @@ class SQL:
         sql_order_by = SQL.__order_by(order_by)
         sql_limit = SQL.__limit(limit)
 
-        return SQL.UPDATE.format(update=sql_update,
-                                 set=sql_set,
-                                 where=sql_where,
-                                 order_by=sql_order_by,
-                                 limit=sql_limit)
+        return SQL.UPDATE.format(
+            update=sql_update, set=sql_set, where=sql_where, order_by=sql_order_by, limit=sql_limit
+        )
+
+    SELECT = """SELECT {distinct} {column_list} {_from} {where} {order_by};"""
+
+    @staticmethod
+    def select(distinct, columns, tables_list, where, order_by):
+
+        if columns:
+            sql_columns = ' ,'.join(columns)
+        else:
+            sql_columns = '*'
+
+        if distinct:
+            sql_distinct = SQL._DISTINCT
+        else:
+            sql_distinct = ''
+
+        sql_from = SQL.__from(tables_list)
+        sql_where = SQL.__where(where)
+        sql_order_by = SQL.__order_by(order_by)
+
+        return SQL.SELECT.format(
+            distinct=sql_distinct, column_list=sql_columns, _from=sql_from, where=sql_where, order_by=sql_order_by
+        )
 
     @staticmethod
     def __delete_from(table_name):
         return SQL._DELETE_FROM.format(table_name=table_name)
+
+    @staticmethod
+    def __from(tables_list):
+        return SQL._FROM.format(tables_list=tables_list)
 
     @staticmethod
     def __where(row_filter):
@@ -133,8 +166,9 @@ class SQL:
     def __create_table(table_name, if_not_exists=False):
         sql_if_not_exists = SQL.__if_not_exists(if_not_exists)
 
-        return SQL._CREATE_TABLE.format(table_name=table_name,
-                                        if_not_exists=sql_if_not_exists)
+        return SQL._CREATE_TABLE.format(
+            table_name=table_name, if_not_exists=sql_if_not_exists
+        )
 
     @staticmethod
     def __if_not_exists(if_not_exists=False):
@@ -158,11 +192,10 @@ class SQL:
         sql_not_null = SQL.__not_null(not_null)
         sql_primary_key = SQL.__primary_key(primary_key)
 
-        return SQL._CREATE_COLUMN.format(column_name=column_name,
-                                         data_type=data_type,
-                                         default=sql_default,
-                                         not_null=sql_not_null,
-                                         primary_key=sql_primary_key)
+        return SQL._CREATE_COLUMN.format(
+            column_name=column_name, data_type=data_type, default=sql_default,
+            not_null=sql_not_null, primary_key=sql_primary_key
+        )
 
     @staticmethod
     def __default(default):
@@ -265,9 +298,9 @@ class WHERE:
 
     @staticmethod
     def between(column_name, value):
-        return WHERE._BETWEEN.format(column_name=column_name,
-                                     less_value=value[0],
-                                     more_value=value[1])
+        return WHERE._BETWEEN.format(
+            column_name=column_name, less_value=value[0], more_value=value[1]
+        )
 
     @staticmethod
     def lt(column_name, value):

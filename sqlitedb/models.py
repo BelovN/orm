@@ -1,10 +1,8 @@
-from datetime import datetime
 from collections import namedtuple
 
 from .commands import Builder
 from .db import Connection
 from .fields import BaseField
-from .query import Q
 
 
 class BaseModel:
@@ -23,8 +21,9 @@ class BaseModel:
                 self.fields[attr_name] = attr
 
     def __set_instance_class(self):
-        self.instance_class = namedtuple(self.table_name, self.fields.keys(),
-                                         defaults=(None,) * len(self.fields.keys()))
+        self.instance_class = namedtuple(
+            self.table_name, self.fields.keys(), defaults=(None,) * len(self.fields.keys())
+        )
 
     def __init__(self):
         if hasattr(self, 'Meta'):
@@ -34,8 +33,7 @@ class BaseModel:
         self.__set_fields()
 
         self.__set_instance_class()
-        self.builder = Builder(table_name=self.table_name,
-                               fields=self.fields)
+        self.builder = Builder(table_name=self.table_name, fields=self.fields)
 
     def get_sql_statements(self):
         sql = self.builder.build()
@@ -70,6 +68,15 @@ class BaseModel:
     def create(self, if_not_exists=True, without_rowid=False):
         self.builder.create(if_not_exists=if_not_exists, without_rowid=without_rowid)
 
+    def select(self, columns, where, order_by, distinct=False):
+        query_args = where.get_args()
+        QueryValidator.validate(self.fields, query_args)
+
+        command = self.builder.select(
+            distinct, columns, self.table_name, where, order_by
+        )
+        return self.connection.execute(command)
+
     def commit(self):
         result = []
         for command in self.builder.builded:
@@ -103,7 +110,7 @@ class QueryValidator:
 
         for val in iterable:
             if not isinstance(val, value_type):
-                raise ValuesError(f'Different type values in {iterable}')
+                raise ValueError(f'Different type values in {iterable}')
 
     @staticmethod
     def validate(fields, query_args):

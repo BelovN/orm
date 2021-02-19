@@ -3,14 +3,14 @@ from .sql import SQL
 from .fields import SQLType
 
 
-
 class BaseCommand:
 
     def __init__(self, table_name):
         self.table_name = table_name
         self._can_add = True
 
-    def _convert_values(self, values):
+    @staticmethod
+    def _convert_values(values):
         converted = [SQLType.convert(v) for v in values]
         return converted
 
@@ -32,14 +32,13 @@ class Create(BaseCommand):
         sql_columns = []
 
         for column in self.columns.values():
-            sql_columns.append((column.name, column._type.name,
-                                column.default, column.not_null,
-                                column.primary_key))
+            sql_columns.append(
+                (column.name, column._type.name, column.default, column.not_null, column.primary_key)
+            )
+
         return SQL.create(
-            table_name=self.table_name,
-            columns=sql_columns,
-            if_not_exists=self.if_not_exists,
-            without_rowid=self.without_rowid
+            table_name=self.table_name, columns=sql_columns,
+            if_not_exists=self.if_not_exists, without_rowid=self.without_rowid
         )
 
     def check_can_add(self, other):
@@ -64,10 +63,9 @@ class Add(BaseCommand):
 
     def build_sql(self):
         self.converted_values = [self._convert_values(values_list) for values_list in self.values]
+
         return SQL.add(
-            table_name=self.table_name,
-            columns=self.columns.keys(),
-            values=self.converted_values
+            table_name=self.table_name, columns=self.columns.keys(), values=self.converted_values
         )
 
     def check_can_add(self, other):
@@ -107,13 +105,14 @@ class Update(BaseCommand):
         return clear_values, clear_columns
 
     def build_sql(self):
-        clear_values, clear_columns = self.__remove_empty(values=self.values,
-                                                          columns=self.columns.keys())
+        clear_values, clear_columns = self.__remove_empty(
+            values=self.values, columns=self.columns.keys()
+        )
         sql_values = self._convert_values(clear_values)
+
         return SQL.update(
-            table_name=self.table_name, columns=clear_columns,
-            values=sql_values, row_filter=self.where.build(),
-            limit=self.limit, order_by=self.order_by
+            table_name=self.table_name, columns=clear_columns, values=sql_values,
+            row_filter=self.where.build(), limit=self.limit, order_by=self.order_by
         )
 
     def check_can_add(self, other):
@@ -151,14 +150,12 @@ class Delete(BaseCommand):
 
     def build_sql(self):
         return SQL.delete(
-            table_name=self.table_name,
-            row_filter=self.where.build(),
-            limit=self.limit,
-            offset=self.offset
+            table_name=self.table_name, row_filter=self.where.build(),
+            limit=self.limit, offset=self.offset
         )
 
     def check_can_add(self, other):
-        if self.limit == oher.limit and self.offset == other.offset:
+        if self.limit == other.limit and self.offset == other.offset:
             return True
 
         return False
@@ -172,8 +169,23 @@ class Delete(BaseCommand):
         return 'DELETE ' + str(self.where)
 
 
+class Select(BaseCommand):
+
+    def __init__(self, distinct, columns, _from, tables_list, where, order_by):
+        self.distinct = distinct
+        self.columns = columns
+        self._from = _from
+        self.tables_list = tables_list
+        self.where = where
+        self.order_by = order_by
+
+    def build_sql(self):
+        return SQL.select(
+            self.distinct, self.columns, self.tables_list, self.where, self.order_by
+        )
+
+
 class Builder:
-    __priorety = ['DELETE', 'ADD', 'UPDATE']
 
     def __init__(self, table_name, fields):
         self.table_name = table_name
@@ -184,16 +196,14 @@ class Builder:
             'UPDATE': [],
             'CREATE': [],
         }
+        self.builded = []
         self.primary_key_fields = [
             field_name for field_name, field in self.fields.items() \
-            if hasattr(field, 'primary_key') and field.primary_key
+                if hasattr(field, 'primary_key') and field.primary_key
         ]
         self.__stack_commands = []
 
-
     def build(self):
-        self.builded = []
-
         for command in self.__stack_commands:
             self.builded.append(command.build_sql())
 
@@ -218,10 +228,7 @@ class Builder:
 
     def delete(self, where, limit=None, offset=None):
         new_command = Delete(
-            table_name=self.table_name,
-            where=where,
-            limit=limit,
-            offset=offset
+            table_name=self.table_name, where=where, limit=limit, offset=offset
         )
         self.__add_command(type_command='DELETE', new_command=new_command)
 
@@ -250,20 +257,21 @@ class Builder:
 
     def update(self, values, where, order_by=None, limit=None):
         new_command = Update(
-            table_name=self.table_name,
-            columns=self.fields,
-            values=values,
-            where=where,
-            limit=limit,
-            order_by=order_by
+            table_name=self.table_name, columns=self.fields, values=values,
+            where=where, limit=limit, order_by=order_by
         )
         self.__add_command(type_command='UPDATE', new_command=new_command)
 
     def create(self, if_not_exists=False, without_rowid=False):
         new_command = Create(
-            table_name=self.table_name,
-            columns=self.fields,
-            if_not_exists=if_not_exists,
-            without_rowid=without_rowid
+            table_name=self.table_name, columns=self.fields,
+            if_not_exists=if_not_exists, without_rowid=without_rowid
         )
         self.__add_command(type_command='CREATE', new_command=new_command)
+
+    def select(self, distinct, columns, _from, tables_list, where, order_by):
+        new_command = Select(
+            distinct=distinct, columns=columns, _from=_from,
+            tables_list=tables_list, where=where, order_by=order_by
+        )
+        return new_command.build_sql()
